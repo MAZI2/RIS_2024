@@ -3,3 +3,6 @@ image_slicing/combined
 image_slicing/train/
 image_slicing/validation/
 cnn_classifier/checkpoints/
+cnn_classifier/checkpoints_CNN/
+cnn_classifier/checkpoints_onlyNN/
+image_slicing/data/
