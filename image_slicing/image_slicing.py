@@ -71,14 +71,18 @@ def resize_volume(img):
 
 def process_scan(path):
     """Read and resize volume"""
-    # Read scan
-    volume = read_nifti_file(path)
-    # Normalize
-    volume = normalize(volume)
-    # Resize width, height and depth
-    volume = resize_volume(volume)
-    return volume
-
+    # wrap all of this into try except block
+    try:
+        # Read scan
+        volume = read_nifti_file(path)
+        # Normalize
+        volume = normalize(volume)
+        # Resize width, height and depth
+        volume = resize_volume(volume)
+        return volume
+    except Exception as e:
+        print(e)
+        return None 
 
 # Reading datasets
 
@@ -90,7 +94,7 @@ scan_paths = [
     for x in os.listdir("/d/hpc/projects/training/RIS/data/RIS")
 ]
 
-#print("CT scans with normal lung tissue: " + str(len(scan_paths)))
+print("CT scans with normal lung tissue: " + str(len(scan_paths)))
 
 
 # In[5]:
@@ -144,13 +148,33 @@ def validation_preprocessing(volume, label):
 
 # Define data loaders.
 def update_dataset(ix):
-    ct_scans = np.array([process_scan(path + '/CT.nii.gz') for path in scan_paths[10*ix:10*ix+10]])
-    pet_scans = np.array([process_scan(path + '/PET.nii.gz') for path in scan_paths[10*ix:10*ix+10]])
-    mask_scans = np.array([process_scan(path + '/MASK.nii.gz') for path in scan_paths[10*ix:10*ix+10]])
+    ct_scans_list = [
+        process_scan(path + "/CT.nii.gz")
+        for path in scan_paths[10*ix:10*ix+10]
+    ]
+    pet_scans_list = [
+        process_scan(path + "/PET.nii.gz")
+        for path in scan_paths[10*ix:10*ix+10]
+    ]
+    mask_scans_list = [
+        process_scan(path + "/MASK.nii.gz")
+        for path in scan_paths[10*ix:10*ix+10]
+    ]
 
+    ct_scans_not_none = [i for i, x in enumerate(ct_scans_list) if x is not None]
+    pet_scans_not_none = [i for i, x in enumerate(pet_scans_list) if x is not None]
+    mask_scans_not_none = [i for i, x in enumerate(mask_scans_list) if x is not None]
+
+    ok_indices = set(ct_scans_not_none) & set(pet_scans_not_none) & set(mask_scans_not_none)
+
+    ct_scans = np.array([ct_scans_list[i] for i in list(ok_indices)])
+    pet_scans = np.array([pet_scans_list[i] for i in list(ok_indices)])
+    mask_scans = np.array([mask_scans_list[i] for i in list(ok_indices)])
+    
     # For the CT scans having presence of viral pneumonia
     # assign 1, for the normal ones assign 0.
     normal_labels = np.array([0 for _ in range(len(ct_scans))])
+    #print(normal_labels)
 
     # Split data in the ratio 70-30 for training and validation.
 
@@ -187,8 +211,7 @@ def update_dataset(ix):
         .batch(batch_size)
         .prefetch(2)
     )
-    return ct_dataset, pet_dataset, mask_dataset
-
+    return ct_dataset, pet_dataset, mask_dataset 
 
 # Visualize
 
@@ -207,9 +230,13 @@ def plot_slices(num_rows, num_columns, width, height, data_ct, data_pet, data_ma
     #axial_image = image[:, :, 30] # Axis 2
     #coronal_image = image[:, 60, :] # Axis 1
     
+
     step = 5
-    brk = 0
+    coords = np.where(mask > 0.71428575)
+    s = set(coords[1][coords[1]%step == 0])
+    """
     s = set()
+    brk = 0
     for a in range(0, 350, step):
         if brk:
             break
@@ -220,6 +247,7 @@ def plot_slices(num_rows, num_columns, width, height, data_ct, data_pet, data_ma
                 if mask[a][b][c]>0.71428575:
                     s.add(b)
     #print(s)
+    """
 
     plt.figure(figsize=(350, 250))
     plt.style.use('grayscale')
@@ -240,8 +268,9 @@ def plot_slices(num_rows, num_columns, width, height, data_ct, data_pet, data_ma
     
         #print(sagital_ct[60,30])
         comb = (0.05 * sagital_ct_jet) + (0.95 * sagital_pet_gray)
-        plt.imsave('combined/combined'+str(i)+'_'+str(j)+'_'+hasmask+'.png',np.rot90(comb))
-        plt.imsave('masks/mask'+str(i)+'_'+str(j)+'_'+hasmask+'.png',np.rot90(sagital_mask))
+        plt.imsave('combined/combined'+str(i)+'_'+str(j)+'_'+str(hasmask)+'.png',np.rot90(comb))
+        plt.imsave('masks/mask'+str(i)+'_'+str(j)+'_'+str(hasmask)+'.png',np.rot90(sagital_mask))
+    plt.close()
         
     #plt.savefig('combined.png')
     """
@@ -293,9 +322,7 @@ def plot_slices(num_rows, num_columns, width, height, data_ct, data_pet, data_ma
     plt.axis('off')
 """
 
-
-
-for iix in range(0, 527):
+for iix in range(48, 100):
     ct_dataset, pet_dataset, mask_dataset = update_dataset(iix)
 
     ct_d = ct_dataset
