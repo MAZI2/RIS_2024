@@ -91,7 +91,7 @@ def process_scan(path):
 
 scan_paths = [
     os.path.join("/d/hpc/projects/training/RIS/data/RIS", x)
-    for x in os.listdir("/d/hpc/projects/training/RIS/data/RIS")
+    for x in sorted(os.listdir("/d/hpc/projects/training/RIS/data/RIS"))
 ]
 
 print("CT scans with normal lung tissue: " + str(len(scan_paths)))
@@ -173,7 +173,7 @@ def update_dataset(ix):
     
     # For the CT scans having presence of viral pneumonia
     # assign 1, for the normal ones assign 0.
-    normal_labels = np.array([0 for _ in range(len(ct_scans))])
+    normal_labels = np.array([10*ix+i for i in range(len(ct_scans))])
     #print(normal_labels)
 
     # Split data in the ratio 70-30 for training and validation.
@@ -322,7 +322,7 @@ def plot_slices(num_rows, num_columns, width, height, data_ct, data_pet, data_ma
     plt.axis('off')
 """
 
-for iix in range(48, 100):
+for iix in range(0, 5):
     ct_dataset, pet_dataset, mask_dataset = update_dataset(iix)
 
     ct_d = ct_dataset
@@ -332,7 +332,7 @@ for iix in range(48, 100):
         cts, labels = list(ct_d)[ix]
         pets, labels1 = list(pet_d)[ix]
         masks, labels2 = list(mask_d)[ix]
-        print(iix*10+ix)
+        print(labels)
 
         cts = cts.numpy()
         ct = cts[0]
